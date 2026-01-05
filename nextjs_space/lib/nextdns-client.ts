@@ -161,8 +161,51 @@ class NextDNSClient {
   async getAnalytics(profileId: string, params?: Record<string, string>): Promise<any> {
     const queryString = params ? '?' + new URLSearchParams(params).toString() : '';
     try {
-      return await this.request('GET', `/profiles/${profileId}/analytics/status${queryString}`);
-    } catch {
+      // Fetch status data (queries and blocked counts)
+      const statusData = await this.request<{ data: Array<{ status: string; queries: number }> }>(
+        'GET',
+        `/profiles/${profileId}/analytics/status${queryString}`
+      );
+
+      // Fetch domains data
+      const domainsData = await this.request<{ data: Array<{ domain: string; queries: number; tracker?: string }> }>(
+        'GET',
+        `/profiles/${profileId}/analytics/domains${queryString}`
+      );
+
+      // Process status data
+      let totalQueries = 0;
+      let blockedQueries = 0;
+      let relayedQueries = 0;
+
+      statusData?.data?.forEach((item) => {
+        if (item.status === 'default') {
+          totalQueries += item.queries;
+        } else if (item.status === 'blocked') {
+          blockedQueries += item.queries;
+        } else if (item.status === 'relayed') {
+          relayedQueries += item.queries;
+        }
+      });
+
+      // Add blocked queries to total
+      totalQueries += blockedQueries + relayedQueries;
+
+      // Process domains data
+      const domains = domainsData?.data?.map((item) => ({
+        name: item.domain,
+        queries: item.queries,
+        blocked: item.tracker ? item.queries : undefined,
+      })) ?? [];
+
+      return {
+        queries: totalQueries,
+        blocked: blockedQueries,
+        relayed: relayedQueries,
+        domains,
+      };
+    } catch (error) {
+      console.error('Error fetching analytics:', error);
       return { queries: 0, blocked: 0, relayed: 0, domains: [] };
     }
   }
