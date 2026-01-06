@@ -1,5 +1,5 @@
 /**
- * NextDNS API Client - Internal proxy layer
+ * Firewall Service Client - Internal proxy layer
  * This file is never exposed to the frontend
  */
 
@@ -7,7 +7,7 @@ const NEXTDNS_API_BASE = 'https://api.nextdns.io';
 const API_KEY = process.env.NEXTDNS_API_KEY;
 
 if (!API_KEY) {
-  console.error('NEXTDNS_API_KEY is not configured in environment variables');
+  console.error('Firewall service credentials not configured in environment variables');
 }
 
 export interface NextDNSProfile {
@@ -54,7 +54,7 @@ class NextDNSClient {
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => 'Unknown error');
-        throw new Error(`NextDNS API error: ${response.status} - ${errorText}`);
+        throw new Error(`Firewall service error: ${response.status} - ${errorText}`);
       }
 
       // Handle 204 No Content
@@ -65,7 +65,7 @@ class NextDNSClient {
       const data = await response.json();
       return data;
     } catch (error: any) {
-      console.error(`NextDNS API request failed: ${method} ${path}`, error);
+      console.error(`Firewall service request failed: ${method} ${path}`, error);
       throw error;
     }
   }

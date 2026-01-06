@@ -185,7 +185,7 @@ export default function LandingPage() {
           <div className="flex flex-col items-center gap-2">
             <span className="px-3 py-1 rounded-full bg-slate-800 border border-slate-700 text-xs flex items-center gap-2 text-slate-400">
               <Lock className="w-3 h-3 text-green-500" />
-              Control plane API keys stay on your server – never exposed in this page.
+              Your credentials stay secure on your server – never exposed in this interface.
             </span>
             <p className="text-sm text-slate-500">
               Leo Prime Firewall · Policy-driven protection for your network traffic.
