@@ -1,7 +1,7 @@
 # Leo Prime Firewall - VPS Deployment Guide
 
 ## Server Details
-- **VPS IP**: 157.173.108.17
+- **VPS IP**:
 - **Domain**: login.leoprime.in
 - **SSH User**: root
 
@@ -9,8 +9,7 @@
 
 ### 1. Connect to VPS
 ```bash
-ssh root@157.173.108.17
-# Password: AdminAdmin@@25
+
 ```
 
 ### 2. Run the deployment script
