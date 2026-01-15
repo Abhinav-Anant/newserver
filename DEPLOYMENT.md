@@ -63,7 +63,7 @@ npm install --legacy-peer-deps
 
 # Create .env file
 cat > .env << 'EOF'
-NEXTDNS_API_KEY=69119442b36df27e156bbe25988ab21b33f2a3cf
+NEXTDNS_API_KEY=
 NEXTAUTH_SECRET=generated-secret-key-change-in-production
 NEXTAUTH_URL=https://login.leoprime.in
 EOF
