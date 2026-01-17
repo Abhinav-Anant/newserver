@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Flame, Shield, Lock, Users, Ban, CheckCircle, Activity, FileText, Settings } from 'lucide-react';
+import { STORAGE_KEYS } from '@/lib/constants';
 import SecurityPage from './sections/security';
 import PrivacyPage from './sections/privacy';
 import ParentalControlPage from './sections/parental-control';
@@ -22,7 +23,7 @@ export default function DashboardPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const storedProfileId = localStorage.getItem('leo_prime_profile_id');
+    const storedProfileId = localStorage.getItem(STORAGE_KEYS.PROFILE_ID);
     
     if (!storedProfileId) {
       router.push('/');
@@ -53,7 +54,7 @@ export default function DashboardPage() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('leo_prime_profile_id');
+    localStorage.removeItem(STORAGE_KEYS.PROFILE_ID);
     router.push('/');
   };
 

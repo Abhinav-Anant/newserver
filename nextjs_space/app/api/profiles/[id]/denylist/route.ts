@@ -1,5 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { nextDNSClient } from '@/lib/nextdns-client';
+import { profileIdSchema, domainSchema } from '@/lib/validation';
+import { errorResponse, successResponse } from '@/lib/api-response';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,22 +12,17 @@ export async function GET(
   try {
     const { id } = params;
 
-    if (!id) {
-      return NextResponse.json(
-        { error: true, message: 'Profile ID is required' },
-        { status: 400 }
-      );
+    // Validate profile ID
+    const validation = profileIdSchema.safeParse(id);
+    if (!validation.success) {
+      return errorResponse('Invalid profile ID', 400);
     }
 
-    const denylist = await nextDNSClient.getDenylist(id);
-
-    return NextResponse.json({ data: denylist }, { status: 200 });
+    const denylist = await nextDNSClient.getDenylist(validation.data);
+    return successResponse(denylist);
   } catch (error: any) {
     console.error('Error fetching denylist:', error);
-    return NextResponse.json(
-      { error: true, message: error?.message ?? 'Failed to fetch denylist' },
-      { status: error?.status ?? 500 }
-    );
+    return errorResponse('Failed to fetch denylist', error?.status ?? 500);
   }
 }
 
@@ -38,28 +35,22 @@ export async function POST(
     const body = await request.json();
     const domain = body?.domain ?? body?.id;
 
-    if (!id) {
-      return NextResponse.json(
-        { error: true, message: 'Profile ID is required' },
-        { status: 400 }
-      );
+    // Validate profile ID
+    const idValidation = profileIdSchema.safeParse(id);
+    if (!idValidation.success) {
+      return errorResponse('Invalid profile ID', 400);
     }
 
-    if (!domain) {
-      return NextResponse.json(
-        { error: true, message: 'Domain is required' },
-        { status: 400 }
-      );
+    // Validate domain
+    const domainValidation = domainSchema.safeParse(domain);
+    if (!domainValidation.success) {
+      return errorResponse('Invalid domain format', 400);
     }
 
-    const result = await nextDNSClient.addToDenylist(id, domain);
-
-    return NextResponse.json(result, { status: 201 });
+    const result = await nextDNSClient.addToDenylist(idValidation.data, domainValidation.data);
+    return successResponse(result, 'Domain added to denylist', 201);
   } catch (error: any) {
     console.error('Error adding to denylist:', error);
-    return NextResponse.json(
-      { error: true, message: error?.message ?? 'Failed to add to denylist' },
-      { status: error?.status ?? 500 }
-    );
+    return errorResponse('Failed to add to denylist', error?.status ?? 500);
   }
 }

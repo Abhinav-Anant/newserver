@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Flame, Shield, Lock, Gauge, Database, Bolt, ArrowRight, Cloud } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { STORAGE_KEYS } from '@/lib/constants';
 
 export default function LandingPage() {
   const [profileId, setProfileId] = useState('');
@@ -31,7 +32,7 @@ export default function LandingPage() {
       }
 
       // Store profile ID and redirect to dashboard
-      localStorage.setItem('leo_prime_profile_id', profileId.trim());
+      localStorage.setItem(STORAGE_KEYS.PROFILE_ID, profileId.trim());
       router.push('/dashboard');
     } catch (err: any) {
       setError(err?.message ?? 'Failed to load profile. Please check your Profile ID.');

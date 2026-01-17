@@ -1,5 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { nextDNSClient } from '@/lib/nextdns-client';
+import { profileIdSchema } from '@/lib/validation';
+import { errorResponse, successResponse } from '@/lib/api-response';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,11 +12,10 @@ export async function GET(
   try {
     const { id } = params;
 
-    if (!id) {
-      return NextResponse.json(
-        { error: true, message: 'Profile ID is required' },
-        { status: 400 }
-      );
+    // Validate profile ID
+    const validation = profileIdSchema.safeParse(id);
+    if (!validation.success) {
+      return errorResponse('Invalid profile ID', 400);
     }
 
     const searchParams = request.nextUrl.searchParams;
@@ -24,14 +25,10 @@ export async function GET(
       queryParams[key] = value;
     });
 
-    const analytics = await nextDNSClient.getAnalytics(id, queryParams);
-
-    return NextResponse.json(analytics, { status: 200 });
+    const analytics = await nextDNSClient.getAnalytics(validation.data, queryParams);
+    return successResponse(analytics);
   } catch (error: any) {
     console.error('Error fetching analytics:', error);
-    return NextResponse.json(
-      { error: true, message: error?.message ?? 'Failed to fetch analytics' },
-      { status: error?.status ?? 500 }
-    );
+    return errorResponse('Failed to fetch analytics', error?.status ?? 500);
   }
 }

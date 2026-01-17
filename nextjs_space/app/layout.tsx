@@ -26,11 +26,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en">
       <head>
-        <script src="https://apps.abacus.ai/chatllm/appllm-lib.js" async />
+        {/* Security: Removed third-party script - uncomment if verified */}
+        {/* <script src="https://apps.abacus.ai/chatllm/appllm-lib.js" async /> */}
       </head>
-      <body className={inter.className} suppressHydrationWarning>
+      <body className={inter.className}>
         {children}
       </body>
     </html>

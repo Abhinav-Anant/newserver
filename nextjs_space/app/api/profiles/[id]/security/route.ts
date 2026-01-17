@@ -1,5 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { nextDNSClient } from '@/lib/nextdns-client';
+import { profileIdSchema } from '@/lib/validation';
+import { errorResponse, successResponse } from '@/lib/api-response';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,22 +12,17 @@ export async function GET(
   try {
     const { id } = params;
 
-    if (!id) {
-      return NextResponse.json(
-        { error: true, message: 'Profile ID is required' },
-        { status: 400 }
-      );
+    // Validate profile ID
+    const validation = profileIdSchema.safeParse(id);
+    if (!validation.success) {
+      return errorResponse('Invalid profile ID', 400);
     }
 
-    const settings = await nextDNSClient.getSecuritySettings(id);
-
-    return NextResponse.json(settings, { status: 200 });
+    const settings = await nextDNSClient.getSecuritySettings(validation.data);
+    return successResponse(settings);
   } catch (error: any) {
     console.error('Error fetching security settings:', error);
-    return NextResponse.json(
-      { error: true, message: error?.message ?? 'Failed to fetch security settings' },
-      { status: error?.status ?? 500 }
-    );
+    return errorResponse('Failed to fetch security settings', error?.status ?? 500);
   }
 }
 
@@ -37,21 +34,16 @@ export async function PATCH(
     const { id } = params;
     const body = await request.json();
 
-    if (!id) {
-      return NextResponse.json(
-        { error: true, message: 'Profile ID is required' },
-        { status: 400 }
-      );
+    // Validate profile ID
+    const validation = profileIdSchema.safeParse(id);
+    if (!validation.success) {
+      return errorResponse('Invalid profile ID', 400);
     }
 
-    const settings = await nextDNSClient.updateSecuritySettings(id, body);
-
-    return NextResponse.json(settings, { status: 200 });
+    const settings = await nextDNSClient.updateSecuritySettings(validation.data, body);
+    return successResponse(settings);
   } catch (error: any) {
     console.error('Error updating security settings:', error);
-    return NextResponse.json(
-      { error: true, message: error?.message ?? 'Failed to update security settings' },
-      { status: error?.status ?? 500 }
-    );
+    return errorResponse('Failed to update security settings', error?.status ?? 500);
   }
 }

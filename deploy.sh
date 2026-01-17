@@ -1,7 +1,9 @@
 #!/bin/bash
 
 # Leo Prime Firewall - Automated Deployment Script
-# For VPS: 157.173.108.17 (login.leoprime.in)
+# 
+# Usage: sudo ./deploy.sh
+# This script will deploy the application to the current VPS
 
 set -e  # Exit on error
 
@@ -10,6 +12,22 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
+
+# Configuration
+DEPLOYMENT_DIR="/var/www"
+APP_NAME="leo-prime-firewall"
+APP_DIR="${DEPLOYMENT_DIR}/${APP_NAME}"
+NEXTJS_DIR="${APP_DIR}/nextjs_space"
+REPO_URL="https://github.com/Abhinav-Anant/newserver.git"
+
+# Error handler
+error_exit() {
+    print_error "$1"
+    exit 1
+}
+
+# Trap errors
+trap 'error_exit "Deployment failed at line $LINENO"' ERR
 
 echo -e "${GREEN}======================================${NC}"
 echo -e "${GREEN}Leo Prime Firewall Deployment Script${NC}"
@@ -31,8 +49,7 @@ print_warning() {
 
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then 
-    print_error "Please run as root (use sudo or login as root)"
-    exit 1
+    error_exit "Please run as root (use sudo or login as root)"
 fi
 
 print_status "Running as root"
@@ -40,14 +57,14 @@ print_status "Running as root"
 # Step 1: Install Prerequisites
 echo -e "\n${YELLOW}Step 1: Installing Prerequisites${NC}"
 
-apt update && apt upgrade -y
+apt update && apt upgrade -y || error_exit "Failed to update system packages"
 print_status "System updated"
 
 # Install Node.js 18.x if not installed
 if ! command -v node &> /dev/null; then
     print_warning "Node.js not found, installing..."
-    curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
-    apt install -y nodejs
+    curl -fsSL https://deb.nodesource.com/setup_18.x | bash - || error_exit "Failed to add Node.js repository"
+    apt install -y nodejs || error_exit "Failed to install Node.js"
     print_status "Node.js installed: $(node -v)"
 else
     print_status "Node.js already installed: $(node -v)"
@@ -56,7 +73,7 @@ fi
 # Install PM2 if not installed
 if ! command -v pm2 &> /dev/null; then
     print_warning "PM2 not found, installing..."
-    npm install -g pm2
+    npm install -g pm2 || error_exit "Failed to install PM2"
     print_status "PM2 installed"
 else
     print_status "PM2 already installed"
@@ -65,7 +82,7 @@ fi
 # Install Nginx if not installed
 if ! command -v nginx &> /dev/null; then
     print_warning "Nginx not found, installing..."
-    apt install -y nginx
+    apt install -y nginx || error_exit "Failed to install Nginx"
     print_status "Nginx installed"
 else
     print_status "Nginx already installed"
@@ -73,7 +90,7 @@ fi
 
 # Install Git if not installed
 if ! command -v git &> /dev/null; then
-    apt install -y git
+    apt install -y git || error_exit "Failed to install Git"
     print_status "Git installed"
 fi
 

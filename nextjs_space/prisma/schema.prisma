@@ -7,3 +7,31 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+// User model for future authentication integration
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  
+  // Profile associations
+  profiles  Profile[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Profile model to store NextDNS profile associations
+model Profile {
+  id              String   @id @default(cuid())
+  nextDNSId       String   @unique
+  name            String
+  
+  // User relationship
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Audit logs
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

@@ -3,11 +3,19 @@
  * This file is never exposed to the frontend
  */
 
-const NEXTDNS_API_BASE = 'https://api.nextdns.io';
-const API_KEY = process.env.NEXTDNS_API_KEY;
+import { getEnv } from './env';
 
-if (!API_KEY) {
-  console.error('Firewall service credentials not configured in environment variables');
+const NEXTDNS_API_BASE = 'https://api.nextdns.io';
+
+let API_KEY: string;
+
+try {
+  const env = getEnv();
+  API_KEY = env.NEXTDNS_API_KEY;
+} catch (error) {
+  console.error('Failed to initialize NextDNS client:', error instanceof Error ? error.message : String(error));
+  // Will be caught when client is instantiated
+  API_KEY = '';
 }
 
 export interface NextDNSProfile {
@@ -31,6 +39,11 @@ class NextDNSClient {
   private baseUrl: string;
 
   constructor(apiKey: string, baseUrl = NEXTDNS_API_BASE) {
+    if (!apiKey || apiKey.trim() === '') {
+      throw new Error(
+        'NextDNS API key is not configured. Please set NEXTDNS_API_KEY environment variable.'
+      );
+    }
     this.apiKey = apiKey;
     this.baseUrl = baseUrl;
   }
@@ -126,8 +139,9 @@ class NextDNSClient {
     try {
       const data = await this.request<{ data: any[] }>('GET', `/profiles/${profileId}/allowlist`);
       return data?.data ?? [];
-    } catch {
-      return [];
+    } catch (error) {
+      console.error(`Error fetching allowlist for profile ${profileId}:`, error);
+      throw error;
     }
   }
 
@@ -144,8 +158,9 @@ class NextDNSClient {
     try {
       const data = await this.request<{ data: any[] }>('GET', `/profiles/${profileId}/denylist`);
       return data?.data ?? [];
-    } catch {
-      return [];
+    } catch (error) {
+      console.error(`Error fetching denylist for profile ${profileId}:`, error);
+      throw error;
     }
   }
 
@@ -205,8 +220,8 @@ class NextDNSClient {
         domains,
       };
     } catch (error) {
-      console.error('Error fetching analytics:', error);
-      return { queries: 0, blocked: 0, relayed: 0, domains: [] };
+      console.error(`Error fetching analytics for profile ${profileId}:`, error);
+      throw error;
     }
   }
 
@@ -216,11 +231,37 @@ class NextDNSClient {
     try {
       const data = await this.request<{ data: any[] }>('GET', `/profiles/${profileId}/logs${queryString}`);
       return data?.data ?? [];
-    } catch {
-      return [];
+    } catch (error) {
+      console.error(`Error fetching logs for profile ${profileId}:`, error);
+      throw error;
     }
   }
 }
 
 // Export singleton instance
-export const nextDNSClient = new NextDNSClient(API_KEY ?? '');
+export const nextDNSClient = (() => {
+  try {
+    return new NextDNSClient(API_KEY);
+  } catch (error) {
+    console.error('Failed to initialize NextDNSClient:', error instanceof Error ? error.message : String(error));
+    // Return a dummy client that will throw on any method call
+    return {
+      getProfile: () => Promise.reject(new Error('NextDNS client not initialized')),
+      updateProfile: () => Promise.reject(new Error('NextDNS client not initialized')),
+      getSecuritySettings: () => Promise.reject(new Error('NextDNS client not initialized')),
+      updateSecuritySettings: () => Promise.reject(new Error('NextDNS client not initialized')),
+      getPrivacySettings: () => Promise.reject(new Error('NextDNS client not initialized')),
+      updatePrivacySettings: () => Promise.reject(new Error('NextDNS client not initialized')),
+      getParentalControlSettings: () => Promise.reject(new Error('NextDNS client not initialized')),
+      updateParentalControlSettings: () => Promise.reject(new Error('NextDNS client not initialized')),
+      getAllowlist: () => Promise.reject(new Error('NextDNS client not initialized')),
+      addToAllowlist: () => Promise.reject(new Error('NextDNS client not initialized')),
+      removeFromAllowlist: () => Promise.reject(new Error('NextDNS client not initialized')),
+      getDenylist: () => Promise.reject(new Error('NextDNS client not initialized')),
+      addToDenylist: () => Promise.reject(new Error('NextDNS client not initialized')),
+      removeFromDenylist: () => Promise.reject(new Error('NextDNS client not initialized')),
+      getAnalytics: () => Promise.reject(new Error('NextDNS client not initialized')),
+      getLogs: () => Promise.reject(new Error('NextDNS client not initialized')),
+    } as any;
+  }
+})();
