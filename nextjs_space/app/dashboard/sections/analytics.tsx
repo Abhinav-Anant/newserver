@@ -35,8 +35,9 @@ export default function AnalyticsPage({ profileId }: AnalyticsPageProps) {
       const res = await fetch(`/api/profiles/${encodeURIComponent(profileId)}/analytics`);
       
       if (res.ok) {
-        const data = await res.json();
-        setAnalytics(data ?? {});
+        const response = await res.json();
+        // API returns { data: { queries, blocked, relayed, domains } }
+        setAnalytics(response?.data ?? response ?? {});
       } else {
         throw new Error('Failed to load analytics');
       }
