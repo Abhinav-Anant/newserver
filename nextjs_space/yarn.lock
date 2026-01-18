@@ -1,6 +1,3 @@
-/opt/hostedapp/node/root/app/yarn.lock
-
-
-
-
-
+# yarn lockfile v1
+# Placeholder yarn.lock added to prevent ENOENT build error seen in deployment.
+# Recommended: regenerate a proper lockfile by running 'yarn install' in the nextjs_space directory and commit the resulting yarn.lock.
