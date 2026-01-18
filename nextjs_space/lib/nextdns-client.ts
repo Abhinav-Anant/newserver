@@ -85,11 +85,13 @@ class NextDNSClient {
 
   // Profile operations
   async getProfile(profileId: string): Promise<NextDNSProfile> {
-    return this.request<NextDNSProfile>('GET', `/profiles/${profileId}`);
+    const response = await this.request<{ data: NextDNSProfile }>('GET', `/profiles/${profileId}`);
+    return response.data;
   }
 
   async updateProfile(profileId: string, data: Partial<NextDNSProfile>): Promise<NextDNSProfile> {
-    return this.request<NextDNSProfile>('PATCH', `/profiles/${profileId}`, data);
+    const response = await this.request<{ data: NextDNSProfile }>('PATCH', `/profiles/${profileId}`, data);
+    return response.data;
   }
 
   // Security settings
@@ -123,15 +125,57 @@ class NextDNSClient {
   // Parental control settings
   async getParentalControlSettings(profileId: string): Promise<Record<string, any>> {
     const profile = await this.getProfile(profileId);
-    return profile.parentalControl ?? {};
+    const parentalControl = profile.parentalControl ?? {};
+    
+    // Transform categories array to boolean flags for frontend
+    const categories = parentalControl.categories ?? [];
+    
+    return {
+      safeSearch: parentalControl.safeSearch ?? false,
+      youtubeRestrictedMode: parentalControl.youtubeRestrictedMode ?? false,
+      blockBypass: parentalControl.blockBypass ?? false,
+      porn: categories.includes('porn'),
+      gambling: categories.includes('gambling'),
+      dating: categories.includes('dating'),
+      piracy: categories.includes('piracy'),
+      socialNetworks: categories.includes('social-networks'),
+    };
   }
 
   async updateParentalControlSettings(
     profileId: string,
     settings: Record<string, any>
   ): Promise<Record<string, any>> {
-    const updated = await this.updateProfile(profileId, { parentalControl: settings });
-    return updated.parentalControl ?? {};
+    // Transform boolean flags back to categories array for API
+    const categories: string[] = [];
+    if (settings.porn) categories.push('porn');
+    if (settings.gambling) categories.push('gambling');
+    if (settings.dating) categories.push('dating');
+    if (settings.piracy) categories.push('piracy');
+    if (settings.socialNetworks) categories.push('social-networks');
+    
+    const apiSettings = {
+      safeSearch: settings.safeSearch ?? false,
+      youtubeRestrictedMode: settings.youtubeRestrictedMode ?? false,
+      blockBypass: settings.blockBypass ?? false,
+      categories,
+    };
+    
+    const updated = await this.updateProfile(profileId, { parentalControl: apiSettings });
+    
+    // Return transformed settings for frontend
+    const pc = updated.parentalControl ?? {};
+    const updatedCategories = pc.categories ?? [];
+    return {
+      safeSearch: pc.safeSearch ?? false,
+      youtubeRestrictedMode: pc.youtubeRestrictedMode ?? false,
+      blockBypass: pc.blockBypass ?? false,
+      porn: updatedCategories.includes('porn'),
+      gambling: updatedCategories.includes('gambling'),
+      dating: updatedCategories.includes('dating'),
+      piracy: updatedCategories.includes('piracy'),
+      socialNetworks: updatedCategories.includes('social-networks'),
+    };
   }
 
   // Allowlist operations
