@@ -81,8 +81,9 @@ export default function SecurityPage({ profileId }: SecurityPageProps) {
       const res = await fetch(`/api/profiles/${encodeURIComponent(profileId)}/security`);
       
       if (res.ok) {
-        const data = await res.json();
-        setSettings(data ?? {});
+        const response = await res.json();
+        // API returns {data: {...}}, extract the nested data
+        setSettings(response?.data ?? response ?? {});
       }
     } catch (err) {
       console.error('Error loading security settings:', err);

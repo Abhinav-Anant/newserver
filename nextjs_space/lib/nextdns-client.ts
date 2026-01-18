@@ -90,8 +90,9 @@ class NextDNSClient {
   }
 
   async updateProfile(profileId: string, data: Partial<NextDNSProfile>): Promise<NextDNSProfile> {
-    const response = await this.request<{ data: NextDNSProfile }>('PATCH', `/profiles/${profileId}`, data);
-    return response.data;
+    await this.request('PATCH', `/profiles/${profileId}`, data);
+    // PATCH returns 204 No Content, so fetch the updated profile
+    return this.getProfile(profileId);
   }
 
   // Security settings
@@ -127,18 +128,24 @@ class NextDNSClient {
     const profile = await this.getProfile(profileId);
     const parentalControl = profile.parentalControl ?? {};
     
-    // Transform categories array to boolean flags for frontend
+    // Transform categories array (objects with id/active) to boolean flags for frontend
     const categories = parentalControl.categories ?? [];
+    
+    // Helper to check if a category is active
+    const isCategoryActive = (categoryId: string): boolean => {
+      const cat = categories.find((c: any) => c.id === categoryId);
+      return cat?.active === true;
+    };
     
     return {
       safeSearch: parentalControl.safeSearch ?? false,
       youtubeRestrictedMode: parentalControl.youtubeRestrictedMode ?? false,
       blockBypass: parentalControl.blockBypass ?? false,
-      porn: categories.includes('porn'),
-      gambling: categories.includes('gambling'),
-      dating: categories.includes('dating'),
-      piracy: categories.includes('piracy'),
-      socialNetworks: categories.includes('social-networks'),
+      porn: isCategoryActive('porn'),
+      gambling: isCategoryActive('gambling'),
+      dating: isCategoryActive('dating'),
+      piracy: isCategoryActive('piracy'),
+      socialNetworks: isCategoryActive('social-networks'),
     };
   }
 
@@ -146,13 +153,15 @@ class NextDNSClient {
     profileId: string,
     settings: Record<string, any>
   ): Promise<Record<string, any>> {
-    // Transform boolean flags back to categories array for API
-    const categories: string[] = [];
-    if (settings.porn) categories.push('porn');
-    if (settings.gambling) categories.push('gambling');
-    if (settings.dating) categories.push('dating');
-    if (settings.piracy) categories.push('piracy');
-    if (settings.socialNetworks) categories.push('social-networks');
+    // Transform boolean flags back to categories array of objects for API
+    const categories: Array<{id: string; active: boolean}> = [];
+    
+    // Only add categories that are active
+    if (settings.porn) categories.push({ id: 'porn', active: true });
+    if (settings.gambling) categories.push({ id: 'gambling', active: true });
+    if (settings.dating) categories.push({ id: 'dating', active: true });
+    if (settings.piracy) categories.push({ id: 'piracy', active: true });
+    if (settings.socialNetworks) categories.push({ id: 'social-networks', active: true });
     
     const apiSettings = {
       safeSearch: settings.safeSearch ?? false,
@@ -166,15 +175,22 @@ class NextDNSClient {
     // Return transformed settings for frontend
     const pc = updated.parentalControl ?? {};
     const updatedCategories = pc.categories ?? [];
+    
+    // Helper to check if a category is active
+    const isCategoryActive = (categoryId: string): boolean => {
+      const cat = updatedCategories.find((c: any) => c.id === categoryId);
+      return cat?.active === true;
+    };
+    
     return {
       safeSearch: pc.safeSearch ?? false,
       youtubeRestrictedMode: pc.youtubeRestrictedMode ?? false,
       blockBypass: pc.blockBypass ?? false,
-      porn: updatedCategories.includes('porn'),
-      gambling: updatedCategories.includes('gambling'),
-      dating: updatedCategories.includes('dating'),
-      piracy: updatedCategories.includes('piracy'),
-      socialNetworks: updatedCategories.includes('social-networks'),
+      porn: isCategoryActive('porn'),
+      gambling: isCategoryActive('gambling'),
+      dating: isCategoryActive('dating'),
+      piracy: isCategoryActive('piracy'),
+      socialNetworks: isCategoryActive('social-networks'),
     };
   }
 

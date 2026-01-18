@@ -42,8 +42,9 @@ export default function PrivacyPage({ profileId }: PrivacyPageProps) {
       const res = await fetch(`/api/profiles/${encodeURIComponent(profileId)}/privacy`);
       
       if (res.ok) {
-        const data = await res.json();
-        setSettings(data ?? {});
+        const response = await res.json();
+        // API returns {data: {...}}, extract the nested data
+        setSettings(response?.data ?? response ?? {});
       }
     } catch (err) {
       console.error('Error loading privacy settings:', err);

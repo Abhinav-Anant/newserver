@@ -67,8 +67,9 @@ export default function ParentalControlPage({ profileId }: ParentalControlPagePr
       const res = await fetch(`/api/profiles/${encodeURIComponent(profileId)}/parental-control`);
       
       if (res.ok) {
-        const data = await res.json();
-        setSettings(data ?? {});
+        const response = await res.json();
+        // API returns {data: {...}}, extract the nested data
+        setSettings(response?.data ?? response ?? {});
       }
     } catch (err) {
       console.error('Error loading parental control settings:', err);

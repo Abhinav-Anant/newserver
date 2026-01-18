@@ -43,8 +43,9 @@ export default function DashboardPage() {
         throw new Error('Failed to load profile');
       }
 
-      const data = await res.json();
-      setProfileName(data?.name ?? id);
+      const response = await res.json();
+      // API returns {data: {...}}, extract the nested data
+      setProfileName(response?.data?.name ?? response?.name ?? id);
       setError('');
     } catch (err: any) {
       setError(err?.message ?? 'Failed to load profile');
