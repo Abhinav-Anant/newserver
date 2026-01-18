@@ -1,0 +1,38 @@
+name: Generate yarn.lock for nextjs_space
+on:
+  workflow_dispatch:
+
+jobs:
+  generate-lock:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Enable Corepack (useful for Yarn 2/3) and ensure a Yarn CLI is available
+        run: |
+          corepack enable
+          # Make sure a Yarn CLI is available; prefer stable (works for Yarn v1 and v2+)
+          corepack prepare yarn@stable --activate || npm install -g yarn@1 || true
+
+      - name: Install dependencies and generate yarn.lock
+        working-directory: nextjs_space
+        run: |
+          # Use yarn to install (will create/modify nextjs_space/yarn.lock)
+          yarn install
+
+      - name: Commit yarn.lock if changed
+        uses: EndBug/add-and-commit@v9
+        with:
+          author_name: 'github-actions'
+          author_email: '41898282+github-actions[bot]@users.noreply.github.com'
+          message: 'chore(ci): generate yarn.lock for nextjs_space'
+          add: 'nextjs_space/yarn.lock'
+          push: true
