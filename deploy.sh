@@ -5,7 +5,7 @@
 # Usage: sudo ./deploy.sh
 # This script will deploy the application to the current VPS
 
-set -e  # Exit on error
+set -euo pipefail
 
 # Colors for output
 RED='\033[0;31m'
@@ -48,7 +48,7 @@ print_warning() {
 }
 
 # Check if running as root
-if [ "$EUID" -ne 0 ]; then 
+if [ "${EUID:-$(id -u)}" -ne 0 ]; then 
     error_exit "Please run as root (use sudo or login as root)"
 fi
 
@@ -97,159 +97,94 @@ fi
 # Step 2: Clone/Update Repository
 echo -e "\n${YELLOW}Step 2: Setting up Repository${NC}"
 
-DEPLOY_DIR="/var/www/leo-prime-firewall"
-
-if [ -d "$DEPLOY_DIR" ]; then
+if [ -d "${APP_DIR}" ]; then
     print_warning "Directory exists, updating..."
-    cd $DEPLOY_DIR
-    git pull origin main
+    cd "${APP_DIR}"
+    git pull origin main || error_exit "Failed to pull latest changes"
     print_status "Repository updated"
 else
     print_warning "Cloning repository..."
-    mkdir -p /var/www
-    cd /var/www
-    git clone https://github.com/Abhinav-Anant/newserver.git leo-prime-firewall
+    mkdir -p "${DEPLOYMENT_DIR}"
+    cd "${DEPLOYMENT_DIR}"
+    git clone "${REPO_URL}" "${APP_NAME}" || error_exit "Failed to clone repository"
     print_status "Repository cloned"
 fi
 
-cd $DEPLOY_DIR/nextjs_space
+# Ensure NEXTJS_DIR exists
+if [ ! -d "${NEXTJS_DIR}" ]; then
+    error_exit "Expected Next.js app directory not found: ${NEXTJS_DIR}"
+fi
+
+cd "${NEXTJS_DIR}"
 
 # Step 3: Install Dependencies and Build
 echo -e "\n${YELLOW}Step 3: Installing Dependencies and Building${NC}"
 
 print_warning "Installing dependencies (this may take a few minutes)..."
-npm install --legacy-peer-deps
+# Install dependencies and include devDependencies to ensure build tools (like next) are present
+npm install --legacy-peer-deps --include=dev 2>&1 | tee /tmp/npm-install.log || error_exit "npm install failed, see /tmp/npm-install.log"
 print_status "Dependencies installed"
 
-# Create .env file
-print_warning "Creating .env file..."
-cat > .env << 'EOF'
-NEXTDNS_API_KEY=69119442b36df27e156bbe25988ab21b33f2a3cf
-NEXTAUTH_SECRET=your-secret-key-change-in-production-$(openssl rand -base64 32)
+# Verify next binary exists
+if [ ! -x "./node_modules/.bin/next" ]; then
+    print_error "Local 'next' binary not found at ./node_modules/.bin/next"
+    print_error "Listing node_modules/.bin:"
+    ls -la ./node_modules/.bin || true
+    error_exit "Missing Next.js binary. Ensure 'next' is listed in package.json dependencies or devDependencies and install succeeded"
+fi
+
+# Create .env file if not present (safe default - override in production)
+if [ ! -f ".env" ]; then
+    print_warning "Creating .env file with placeholder values (update before production)..."
+    cat > .env << 'EOF'
+NEXTDNS_API_KEY=
+NEXTAUTH_SECRET=please-change-me-$(openssl rand -base64 12)
 NEXTAUTH_URL=https://login.leoprime.in
 EOF
-print_status ".env file created"
+    print_status ".env file created"
+else
+    print_status ".env already exists"
+fi
 
 print_warning "Building application (this may take a few minutes)..."
-npm run build
+npm run build 2>&1 | tee /tmp/npm-build.log || {
+    tail -n 200 /tmp/npm-build.log
+    error_exit "Build failed, see /tmp/npm-build.log"
+}
 print_status "Application built successfully"
 
 # Step 4: Configure PM2
 echo -e "\n${YELLOW}Step 4: Configuring PM2${NC}"
 
-cat > ecosystem.config.js << 'EOF'
+# Prefer a committed ecosystem.config.js inside nextjs_space if present
+PM2_ECOSYSTEM_FILE="${NEXTJS_DIR}/ecosystem.config.js"
+
+if [ -f "${PM2_ECOSYSTEM_FILE}" ]; then
+    print_status "Using existing PM2 ecosystem file at ${PM2_ECOSYSTEM_FILE}"
+else
+    print_warning "No committed PM2 ecosystem found. Creating a safe ecosystem.config.js (will not overwrite if created previously)"
+    cat > "${PM2_ECOSYSTEM_FILE}" << 'EOF'
 module.exports = {
   apps: [{
     name: 'leo-prime-firewall',
-    script: './node_modules/.bin/next',
+    script: 'npm',
     args: 'start',
-    cwd: '/var/www/leo-prime-firewall/nextjs_space',
-    instances: 1,
-    autorestart: true,
-    watch: false,
-    max_memory_restart: '1G',
-    env: {
-      NODE_ENV: 'production',
-      PORT: 3000
-    }
+    cwd: '${NEXTJS_DIR}',
+    log: './logs/pm2.log',
+    exp_backoff_restart_delay: 100,
+    instances: 'max',
+    exec_mode: 'cluster'
   }]
-}
+};
 EOF
-print_status "PM2 configuration created"
-
-# Stop existing process
-pm2 delete leo-prime-firewall 2>/dev/null || true
-print_status "Stopped old PM2 process (if any)"
-
-# Start application
-pm2 start ecosystem.config.js
-print_status "Application started with PM2"
-
-pm2 save
-pm2 startup | tail -n 1 | bash
-print_status "PM2 configured to start on boot"
-
-# Step 5: Configure Nginx
-echo -e "\n${YELLOW}Step 5: Configuring Nginx${NC}"
-
-tee /etc/nginx/sites-available/leo-prime-firewall > /dev/null << 'EOF'
-server {
-    listen 80;
-    listen [::]:80;
-    server_name login.leoprime.in;
-
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
-EOF
-print_status "Nginx configuration created"
-
-ln -sf /etc/nginx/sites-available/leo-prime-firewall /etc/nginx/sites-enabled/
-rm -f /etc/nginx/sites-enabled/default
-print_status "Nginx site enabled"
-
-nginx -t
-print_status "Nginx configuration is valid"
-
-systemctl restart nginx
-print_status "Nginx restarted"
-
-# Step 6: Install SSL Certificate
-echo -e "\n${YELLOW}Step 6: Installing SSL Certificate${NC}"
-
-if ! command -v certbot &> /dev/null; then
-    print_warning "Installing Certbot..."
-    apt install -y certbot python3-certbot-nginx
-    print_status "Certbot installed"
+    print_status "Safe ecosystem.config.js created"
 fi
 
-print_warning "Obtaining SSL certificate..."
-if certbot --nginx -d login.leoprime.in --non-interactive --agree-tos --email admin@leoprime.in --redirect; then
-    print_status "SSL certificate installed successfully"
-else
-    print_error "SSL certificate installation failed (you may need to configure it manually)"
-fi
+# Start the application via PM2
+print_status "Starting application via PM2..."
+pm2 start "${PM2_ECOSYSTEM_FILE}" || error_exit "Failed to start application in PM2"
+print_status "Application started"
 
-# Step 7: Configure Firewall
-echo -e "\n${YELLOW}Step 7: Configuring Firewall${NC}"
-
-if command -v ufw &> /dev/null; then
-    ufw allow OpenSSH
-    ufw allow 'Nginx Full'
-    ufw --force enable
-    print_status "Firewall configured"
-else
-    print_warning "UFW not found, skipping firewall configuration"
-fi
-
-# Final Status Check
-echo -e "\n${YELLOW}======================================${NC}"
-echo -e "${GREEN}Deployment Complete!${NC}"
-echo -e "${YELLOW}======================================${NC}"
-echo ""
-
-print_status "Application Status:"
-pm2 status
-
-echo -e "\n${GREEN}Your application should now be accessible at:${NC}"
-echo -e "  • HTTP:  http://login.leoprime.in"
-echo -e "  • HTTPS: https://login.leoprime.in"
-echo ""
-echo -e "${YELLOW}Useful Commands:${NC}"
-echo -e "  • View logs:     pm2 logs leo-prime-firewall"
-echo -e "  • Restart app:   pm2 restart leo-prime-firewall"
-echo -e "  • Stop app:      pm2 stop leo-prime-firewall"
-echo -e "  • PM2 status:    pm2 status"
-echo -e "  • Nginx status:  systemctl status nginx"
-echo ""
-echo -e "${GREEN}Test Profile ID: 984e22${NC}"
-echo ""
+# Save the PM2 process state
+pm2 save || error_exit "Failed to save PM2 process state"
+print_status "PM2 process state saved"
