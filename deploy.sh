@@ -135,7 +135,7 @@ if [ ! -f ".env" ]; then
     print_warning "Creating .env file with placeholder values (update before production)..."
     cat > .env << EOF
 NEXTDNS_API_KEY=
-NEXTAUTH_SECRET=please-change-me-$(openssl rand -base64 12)
+NEXTAUTH_SECRET=please-change-me-
 NEXTAUTH_URL=https://login.leoprime.in
 EOF
     print_status ".env file created"
