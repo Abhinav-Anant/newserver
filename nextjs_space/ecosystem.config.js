@@ -2,7 +2,7 @@ module.exports = {
   apps: [{
     name: 'leo-prime-firewall',
     // Use npm start to be resilient to where binaries are installed.
-    // Ensure package.json contains: "start": "next start -p $PORT"
+    // Next.js will automatically use the PORT environment variable
     script: 'npm',
     args: 'start',
     cwd: '/var/www/leo-prime-firewall/nextjs_space',
