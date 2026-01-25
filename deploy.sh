@@ -99,13 +99,10 @@ echo -e "\n${YELLOW}Step 2: Setting up Repository${NC}"
 
 if [ -d "${APP_DIR}" ]; then
     print_warning "Directory exists, updating..."
-    cd "${APP_DIR}"
+    cd "${APP_DIR}" || error_exit "Failed to cd into ${APP_DIR}"
     git pull origin main || error_exit "Failed to pull latest changes"
-    print_status "Repository updated"
 else
-    print_warning "Cloning repository..."
-    mkdir -p "${DEPLOYMENT_DIR}"
-    cd "${DEPLOYMENT_DIR}"
+    cd "${DEPLOYMENT_DIR}" || error_exit "Failed to cd into ${DEPLOYMENT_DIR}"
     git clone "${REPO_URL}" "${APP_NAME}" || error_exit "Failed to clone repository"
     print_status "Repository cloned"
 fi
@@ -136,7 +133,7 @@ fi
 # Create .env file if not present (safe default - override in production)
 if [ ! -f ".env" ]; then
     print_warning "Creating .env file with placeholder values (update before production)..."
-    cat > .env << 'EOF'
+    cat > .env << EOF
 NEXTDNS_API_KEY=
 NEXTAUTH_SECRET=please-change-me-$(openssl rand -base64 12)
 NEXTAUTH_URL=https://login.leoprime.in
@@ -163,7 +160,7 @@ if [ -f "${PM2_ECOSYSTEM_FILE}" ]; then
     print_status "Using existing PM2 ecosystem file at ${PM2_ECOSYSTEM_FILE}"
 else
     print_warning "No committed PM2 ecosystem found. Creating a safe ecosystem.config.js (will not overwrite if created previously)"
-    cat > "${PM2_ECOSYSTEM_FILE}" << 'EOF'
+    cat > "${PM2_ECOSYSTEM_FILE}" << EOF
 module.exports = {
   apps: [{
     name: 'leo-prime-firewall',
@@ -188,3 +185,10 @@ print_status "Application started"
 # Save the PM2 process state
 pm2 save || error_exit "Failed to save PM2 process state"
 print_status "PM2 process state saved"
+
+# Final verification instructions
+echo ""
+print_status "Deployment finished. Verify the service is running:"
+echo "  pm2 status"
+echo "  pm2 logs leo-prime-firewall --lines 50"
+echo "  curl http://localhost:3000"
