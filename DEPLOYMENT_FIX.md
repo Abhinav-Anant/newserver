@@ -60,9 +60,9 @@ The `deploy.sh` script:
 5. `npm start` runs `next start` which reads `PORT` from the environment
 
 ## Related Files Changed
-- `nextjs_space/package.json` - Fixed start script
+- `nextjs_space/package.json` - Fixed start script and updated Next.js version
 - `nextjs_space/ecosystem.config.js` - Updated comment to reflect change
-- `nextjs_space/package-lock.json` - Updated from reinstall
+- `nextjs_space/package-lock.json` - Updated from dependency updates
 
 ## Verification
 After deployment, verify the application is running:
